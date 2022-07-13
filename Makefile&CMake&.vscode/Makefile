@@ -1,5 +1,5 @@
 cc        := g++
-name      := pro
+name      := app
 workdir   := workspace
 srcdir    := src
 objdir    := objs
