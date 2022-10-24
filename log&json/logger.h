@@ -210,9 +210,3 @@ namespace wlog {
 #define STM_WARN()	wlog::logger::log_stream({__FILENAME__, __LINE__, __FUNCTION__}, spdlog::level::warn, "")
 #define STM_ERROR() wlog::logger::log_stream({__FILENAME__, __LINE__, __FUNCTION__}, spdlog::level::err, "")
 #define STM_FATAL() wlog::logger::log_stream({__FILENAME__, __LINE__, __FUNCTION__}, spdlog::level::critical, "")
-
-
-
-
-
-
