@@ -8,3 +8,4 @@
 - **string_view** 包含了非c++17实现的string_view，方便嵌入到自己的项目中
 - **Dockerfile** Docker镜像
 
+- **HttpClient** http request封装，包含get和post请求
