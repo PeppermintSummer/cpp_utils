@@ -1,0 +1,94 @@
+# ==========================说在前面========================================
+# module list
+# ------------------------------------------------------------------
+# python        3.8    (apt)
+# pytorch       latest (pip)
+# ==================================================================
+# ===============通过本地文件Dockerfile方式构建镜像===================
+# sudo docker build -t guyu_cu100:v1 .
+# ===============远端拉取方式构建====================================
+# docker pull nvidia/cuda:10.0-devel-ubuntu18.04
+# docker pull nvidia/cuda:10.2-devel-ubuntu18.04
+
+# ===========create new container by docker images==================
+# docker run -itd --runtime=nvidia --gpus=all -e NVIDIA_DRIVER_CAPABILITIES=compute,utility,video,graphics -v /root/Documents/guyu:/data/ --name dmrnet --privileged=true -v /dev/shm:/dev/shm a411307c4f6b /bin/bash
+# -it必备 d表示在背景里运行; -v 磁盘挂载 本地绝对路径:容器的绝对路径; --name 给你的container取个响亮的芳名;-v /dev/shm:/dev/shm 共享内存; a411307c4f6b image ID; /bin/bash 执行命令; -p 端口映射 -p 49154:22
+# 他会创建一个容器出来,本身带着id，然后docker ps -a 即可查看
+
+# =====然后我们进入容器 docker exec -it container-id (f34d733ff398) /bin/bash
+# =====退出容器        ctrl+D
+# =====启动            docker, docker start (container-id) ,停止容器 docker stop (container-id)
+# =====删除镜像,       docker rmi image-id, 删除容器, docker rm container-id
+# =====开启和关闭服务，service docker start, service docker stop
+# ============想让它一直运行的话,可以使用disown命令或sh ./start.sh======
+
+# docker export container-id > name.tar 容器导出,带着它到处跑,直接导出的是没有压缩过的,你可以自己压缩一下
+# docker import name.tar 容器导入
+# 导出镜像并压缩: docker save  imageName:tag | gzip > imageName-tag.tar.gz
+# 加载镜像 : gunzip -c  imageName-tag.tar.gz | docker load
+# 可以结合 ssh 和 pv 命令，一个命令完成从一个机器将镜像迁移到另一个机器，而且带进度条: docker save <镜像名> | bzip2 | pv | ssh <用户名>@<主机名> 'cat | docker load'
+
+
+FROM pytorch/pytorch:1.11.0-cuda11.3-cudnn8-devel
+ENV TERM=xterm-256color
+RUN rm /etc/apt/sources.list.d/cuda.list && \
+    rm /etc/apt/sources.list.d/nvidia-ml.list
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cmake \
+    git \
+    curl \
+    wget \
+    sudo \
+    openssh-server \
+    vim \
+    tmux && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libglu1 && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN wget https://tuna.moe/oh-my-tuna/oh-my-tuna.py && python oh-my-tuna.py && apt-get update
+
+# 8 新建用户并用 fixuid 管理 uid
+ENV USERNAME="docker"
+ENV PASSWD="Docker@Epic2022"
+RUN useradd --create-home --no-log-init --shell /bin/zsh ${USERNAME} && \
+    echo "${USERNAME}:${PASSWD}" | chpasswd && \
+    USER=${USERNAME} && \
+    GROUP=${USERNAME} && \
+    curl -SsL https://github.com/boxboat/fixuid/releases/download/v0.4.1/fixuid-0.4.1-linux-amd64.tar.gz | tar -C /usr/local/bin -xzf - && \
+    chown root:root /usr/local/bin/fixuid && \
+    chmod 4755 /usr/local/bin/fixuid && \
+    mkdir -p /etc/fixuid && \
+    printf "user: $USER\ngroup: $GROUP\n" > /etc/fixuid/config.yml && \
+    echo "${USERNAME}   ALL=(ALL:ALL) ALL" >> /etc/sudoers
+WORKDIR /home/${USERNAME}
+USER ${USERNAME}:${USERNAME}
+
+# 10 配置环境变量，使ssh连接时env也生效
+RUN sed -i '$a\export $(cat /proc/1/environ |tr "\\0" "\\n" |tr " " ";" | xargs)' .zshrc
+
+# 11 配置tmux
+RUN git clone https://gitee.com/JinfengX/oh-my-tmux.git .tmux && \
+    ln -s -f .tmux/.tmux.conf && \
+    cp .tmux/.tmux.conf.local .
+
+# 12 开放ssh端口
+EXPOSE 22
+# 13 使用conda初始化zsh,复制root环境下的python环境base到user_base,添加user_base环境中的可执行文件路径到PATH,指定默认使用user_base环境,开启ssh
+RUN /opt/conda/bin/conda init zsh && \
+    echo 'PATH=~/.local/bin:$PATH' >> ~/.zshrc
+    #conda create -y -n user_base --clone base && # 这两部分选择性使用
+    #echo 'conda activate user_base' >> ~/.zshrc
+
+ENV LANG C.UTF-8 
+
+ENTRYPOINT ["fixuid"]
+CMD echo ${PASSWD} | sudo -S service ssh start && \
+    echo "\033[31mName: $USERNAME \r\nPasswd: $PASSWD\033[0m\r\n" && \
+    /bin/zsh
