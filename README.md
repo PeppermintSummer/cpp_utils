@@ -7,5 +7,5 @@
 - **log&json** 包含了常用的封装的log写入和 [nlohmann/json](https://github.com/nlohmann/json) 头文件
 - **string_view** 包含了非c++17实现的string_view，方便嵌入到自己的项目中
 - **Dockerfile** Docker镜像
-
 - **HttpClient** http request封装，包含get和post请求
+- **AutoTimer** 函数自动记录cpu时间(c++和python实现)。(如果想记录gpu执行时间，使用cudaEvent)
