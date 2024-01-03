@@ -1,0 +1,24 @@
+cc      = gcc
+CCFLAG  = -O2
+
+SRC_FILES := $(shell find src -name '*.c')
+C_OBJS    := $(SRC_FILES:.c=.o)
+C_OBJS    := $(C_OBJS:src/%=objs/%)
+
+run: workspace/run
+        @cd workspace && ./run
+
+workspace/run : $(C_OBJS)
+        @echo Link $@
+        @mkdir -p $(dir $@)
+        @$(cc) $^ -o $@
+        
+
+objs/%.o : src/%.c
+        @echo Compile CXX $<
+        @mkdir -p $(dir $@)
+        @$(cc) -c $< -o $@
+
+test:
+        @cd workspace && python test.py
+
